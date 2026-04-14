@@ -1,0 +1,60 @@
+const mockUsers = [
+  {
+    id: "ID-0001",
+    name: "Areeba Khan",
+    email: "areeba.khan@miniflex.edu",
+    department: "Computer Science",
+    status: "Active",
+    role: "Student",
+  },
+  {
+    id: "ID-0002",
+    name: "Muneeb Iqbal",
+    email: "muneeb.iqbal@miniflex.edu",
+    department: "Software Engineering",
+    status: "Active",
+    role: "Student",
+  },
+  {
+    id: "ID-0003",
+    name: "Sana Waheed",
+    email: "sana.waheed@miniflex.edu",
+    department: "Artificial Intelligence",
+    status: "Active",
+    role: "Student",
+  },
+  {
+    id: "ID-0004",
+    name: "Hamza Tariq",
+    email: "hamza.tariq@miniflex.edu",
+    department: "Computer Science",
+    status: "Active",
+    role: "Student",
+  },
+  {
+    id: "ID-0005",
+    name: "Dr. Ayesha Malik",
+    email: "ayesha.malik@miniflex.edu",
+    department: "Computer Science",
+    status: "Active",
+    role: "Teacher",
+  },
+  {
+    id: "ID-0006",
+    name: "Sir Umer Khalid",
+    email: "umer.khalid@miniflex.edu",
+    department: "Software Engineering",
+    status: "Active",
+    role: "Teacher",
+  },
+  {
+    id: "ID-0007",
+    name: "Ma'am Nida Shaikh",
+    email: "nida.shaikh@miniflex.edu",
+    department: "Data Science",
+    status: "Active",
+    role: "Teacher",
+  },
+];
+
+export default mockUsers;
