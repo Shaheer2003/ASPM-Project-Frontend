@@ -1,30 +1,51 @@
 import { useMemo, useState } from "react";
 import Layout from "../shared/Layout";
-import mockTeacher from "../../data/mockTeacher";
+import { useAppData } from "../../context/AppDataContext";
+import { useAuth } from "../../context/AuthContext";
 
 const links = [
   { label: "Dashboard", path: "/teacher/dashboard" },
+  { label: "Student Profiles", path: "/teacher/students" },
   { label: "Mark Attendance", path: "/teacher/attendance" },
   { label: "Manage Marks", path: "/teacher/marks" },
-];
-
-const students = [
-  { id: "22K-4169", name: "Tameema Rehman" },
-  { id: "22K-4389", name: "Shaheer Mumtaz" },
-  { id: "22K-4396", name: "Ahmed Yoshay" },
-  { id: "22L-6754", name: "Taha Tahir" },
-  { id: "22K-4200", name: "Ayesha Tariq" },
+  { label: "Reports", path: "/teacher/reports" },
 ];
 
 export default function MarkAttendance() {
+  const { user } = useAuth();
+  const {
+    studentsByClass,
+    attendanceRecords,
+    markAttendance,
+    updateAttendanceRecord,
+    getTeacherById,
+    courses,
+  } = useAppData();
+
   const [selectedClass, setSelectedClass] = useState("");
   const [date, setDate] = useState("");
   const [session, setSession] = useState("");
   const [attendance, setAttendance] = useState({});
+  const [feedback, setFeedback] = useState({ type: "", message: "" });
 
-  const selectedClassObj = useMemo(
-    () => mockTeacher.classes.find((course) => course.code === selectedClass),
-    [selectedClass]
+  const teacher = getTeacherById(user.id);
+  const classOptions = teacher?.assignedClasses || [];
+  const selectedStudents = studentsByClass[selectedClass] || [];
+
+  const getClassLabel = (classCode) => {
+    const course = courses.find((entry) => entry.classCode === classCode);
+    return course ? `${classCode} - ${course.name}` : classCode;
+  };
+
+  const existingRows = useMemo(
+    () =>
+      attendanceRecords.filter(
+        (record) =>
+          record.classCode === selectedClass &&
+          record.date === date &&
+          record.teacherId === user.id
+      ),
+    [attendanceRecords, selectedClass, date, user.id]
   );
 
   const updateAttendance = (studentId, status) => {
@@ -32,11 +53,34 @@ export default function MarkAttendance() {
   };
 
   const handleSubmit = () => {
-    if (!selectedClassObj || !date) {
+    if (!selectedClass || !date || !session) {
+      setFeedback({ type: "error", message: "Please select class, date and session." });
       return;
     }
 
-    alert(`Attendance saved for ${selectedClassObj.name} on ${date}`);
+    const entries = selectedStudents
+      .filter((student) => attendance[student.id])
+      .map((student) => ({ studentId: student.id, status: attendance[student.id] }));
+
+    if (entries.length === 0) {
+      setFeedback({ type: "error", message: "Please mark attendance before submitting." });
+      return;
+    }
+
+    const result = markAttendance({
+      teacherId: user.id,
+      classCode: selectedClass,
+      date,
+      session,
+      entries,
+    });
+
+    setFeedback({ type: result.ok ? "success" : "error", message: result.message });
+  };
+
+  const handleUpdateExisting = (recordId, status) => {
+    const result = updateAttendanceRecord(recordId, status);
+    setFeedback({ type: result.ok ? "success" : "error", message: result.message });
   };
 
   return (
@@ -54,9 +98,9 @@ export default function MarkAttendance() {
             className="input-glass"
           >
             <option value="">Select Class</option>
-            {mockTeacher.classes.map((course) => (
-              <option key={course.code} value={course.code}>
-                {course.code} - {course.name}
+            {classOptions.map((classCode) => (
+              <option key={classCode} value={classCode}>
+                {getClassLabel(classCode)}
               </option>
             ))}
           </select>
@@ -93,8 +137,11 @@ export default function MarkAttendance() {
                 </tr>
               </thead>
               <tbody>
-                {students.map((student, index) => (
-                  <tr key={student.id} className={index % 2 === 0 ? "bg-white/35" : "bg-white/10"}>
+                {selectedStudents.map((student, index) => (
+                  <tr
+                    key={student.id}
+                    className={index % 2 === 0 ? "table-row-even" : "table-row-odd"}
+                  >
                     <td>{student.id}</td>
                     <td>{student.name}</td>
                     <td>
@@ -122,6 +169,52 @@ export default function MarkAttendance() {
           <button type="button" onClick={handleSubmit} className="btn-primary mt-4">
             Submit Attendance
           </button>
+
+          {feedback.message ? (
+            <p
+              className={[
+                "mt-3 text-sm font-semibold",
+                feedback.type === "error" ? "text-[var(--color-danger)]" : "text-emerald-700",
+              ].join(" ")}
+            >
+              {feedback.message}
+            </p>
+          ) : null}
+
+          <h2 className="text-main text-lg font-bold mt-6">Update Existing Records</h2>
+          <div className="table-shell mt-3">
+            <table className="table-glass min-w-[700px]">
+              <thead>
+                <tr>
+                  <th>Student ID</th>
+                  <th>Date</th>
+                  <th>Session</th>
+                  <th>Status</th>
+                  <th>Update</th>
+                </tr>
+              </thead>
+              <tbody>
+                {existingRows.map((record, index) => (
+                  <tr key={record.id} className={index % 2 === 0 ? "table-row-even" : "table-row-odd"}>
+                    <td>{record.studentId}</td>
+                    <td>{record.date}</td>
+                    <td>{record.session}</td>
+                    <td>{record.status}</td>
+                    <td>
+                      <div className="flex gap-2">
+                        <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={() => handleUpdateExisting(record.id, "Present")}>
+                          Mark Present
+                        </button>
+                        <button type="button" className="btn-danger" onClick={() => handleUpdateExisting(record.id, "Absent")}>
+                          Mark Absent
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       ) : null}
     </Layout>

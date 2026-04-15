@@ -1,21 +1,22 @@
 import { useMemo, useState } from "react";
 import Layout from "../shared/Layout";
-import mockUsers from "../../data/mockUsers";
+import { useAppData } from "../../context/AppDataContext";
 
 const links = [
   { label: "Dashboard", path: "/admin/dashboard" },
   { label: "Manage Users", path: "/admin/manage-users" },
   { label: "Register User", path: "/admin/register-user" },
-  { label: "System Settings", path: "#" },
+  { label: "Attendance Reports", path: "/admin/attendance-reports" },
 ];
 
 const PAGE_SIZE = 5;
 
 export default function ManageUsers() {
-  const [users, setUsers] = useState(mockUsers);
+  const { users, assignUserRole, updateStudent, deleteOrArchiveStudent } = useAppData();
   const [activeTab, setActiveTab] = useState("Student");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [feedback, setFeedback] = useState({ type: "", message: "" });
 
   const filteredUsers = useMemo(() => {
     const lowered = search.toLowerCase();
@@ -33,8 +34,34 @@ export default function ManageUsers() {
     currentPage * PAGE_SIZE
   );
 
-  const handleDelete = (id) => {
-    setUsers((prev) => prev.filter((user) => user.id !== id));
+  const handleRoleChange = (id, role) => {
+    const result = assignUserRole(id, role);
+    setFeedback({ type: result.ok ? "success" : "error", message: result.message });
+  };
+
+  const handleQuickUpdate = (user) => {
+    if (user.role !== "Student") {
+      setFeedback({ type: "success", message: "No additional fields required for this role." });
+      return;
+    }
+
+    const nextName = window.prompt("Update student name", user.name);
+    if (nextName === null) {
+      return;
+    }
+
+    const nextEmail = window.prompt("Update student email", user.email);
+    if (nextEmail === null) {
+      return;
+    }
+
+    const result = updateStudent(user.id, { name: nextName, email: nextEmail });
+    setFeedback({ type: result.ok ? "success" : "error", message: result.message });
+  };
+
+  const handleDelete = (id, mode) => {
+    const result = deleteOrArchiveStudent(id, mode);
+    setFeedback({ type: result.ok ? "success" : "error", message: result.message });
   };
 
   return (
@@ -71,7 +98,7 @@ export default function ManageUsers() {
               }}
               className={[
                 "tab-chip",
-                activeTab === tab ? "tab-chip-active" : "hover:border-white hover:bg-white",
+                activeTab === tab ? "tab-chip-active" : "hover:brightness-105",
               ].join(" ")}
             >
               {tab}s
@@ -94,29 +121,45 @@ export default function ManageUsers() {
               </tr>
             </thead>
             <tbody>
-              {paginatedUsers.map((user, index) => (
-                <tr key={user.id} className={index % 2 === 0 ? "bg-white/35" : "bg-white/10"}>
+              {paginatedUsers.map((user) => (
+                <tr key={user.id} className="table-row-odd">
                   <td>{user.id}</td>
                   <td>{user.name}</td>
                   <td>{user.email}</td>
                   <td>{user.department}</td>
                   <td>
-                    <span className="rounded-full border border-emerald-200 bg-emerald-100/80 px-2 py-1 text-xs font-semibold text-emerald-700">
+                    <span className="status-pill-positive">
                       {user.status}
                     </span>
                   </td>
                   <td>
                     <div className="flex gap-2">
+                      <select
+                        className="input-glass w-28 px-2 py-1.5 text-xs"
+                        value={user.role}
+                        onChange={(event) => handleRoleChange(user.id, event.target.value)}
+                      >
+                        <option value="Student">Student</option>
+                        <option value="Teacher">Teacher</option>
+                        <option value="Admin">Admin</option>
+                      </select>
                       <button
                         type="button"
-                        onClick={() => alert(`Edit user ${user.name}`)}
+                        onClick={() => handleQuickUpdate(user)}
                         className="btn-ghost px-3 py-1.5 text-xs"
                       >
                         Edit
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(user.id)}
+                        onClick={() => handleDelete(user.id, "archive")}
+                        className="btn-ghost px-3 py-1.5 text-xs"
+                      >
+                        Archive
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(user.id, "delete")}
                         className="btn-danger"
                       >
                         Delete
@@ -146,7 +189,7 @@ export default function ManageUsers() {
                 "rounded-xl px-3 py-1.5 text-xs font-semibold transition",
                 currentPage === n
                   ? "bg-[var(--color-primary)] text-white"
-                  : "border border-white/70 bg-white/70 text-[#365577]",
+                  : "btn-ghost",
               ].join(" ")}
             >
               {n}
@@ -160,6 +203,17 @@ export default function ManageUsers() {
             Next
           </button>
         </div>
+
+        {feedback.message ? (
+          <p
+            className={[
+              "mt-3 text-sm font-semibold",
+              feedback.type === "error" ? "text-[var(--color-danger)]" : "text-emerald-700",
+            ].join(" ")}
+          >
+            {feedback.message}
+          </p>
+        ) : null}
       </section>
     </Layout>
   );

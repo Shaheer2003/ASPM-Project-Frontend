@@ -1,47 +1,104 @@
 import { useMemo, useState } from "react";
 import Layout from "../shared/Layout";
-import mockTeacher from "../../data/mockTeacher";
+import { useAppData } from "../../context/AppDataContext";
+import { useAuth } from "../../context/AuthContext";
 
 const links = [
   { label: "Dashboard", path: "/teacher/dashboard" },
+  { label: "Student Profiles", path: "/teacher/students" },
   { label: "Mark Attendance", path: "/teacher/attendance" },
   { label: "Manage Marks", path: "/teacher/marks" },
-];
-
-const initialRows = [
-  { id: "22K-4169", name: "Tameema Rehman", total: 100, obtained: 80 },
-  { id: "22K-4389", name: "Shaheer Mumtaz", total: 100, obtained: 71 },
-  { id: "22K-4396", name: "Ahmed Yoshay", total: 100, obtained: 74 },
-  { id: "22L-6754", name: "Taha Tahir", total: 100, obtained: 67 },
-  { id: "22K-4200", name: "Ayesha Tariq", total: 100, obtained: 91 },
+  { label: "Reports", path: "/teacher/reports" },
 ];
 
 export default function ManageMarks() {
+  const { user } = useAuth();
+  const {
+    studentsByClass,
+    courses,
+    marksWithComputed,
+    upsertMarksForClassAssessment,
+    getTeacherById,
+  } = useAppData();
+
   const [selectedClass, setSelectedClass] = useState("");
   const [assessment, setAssessment] = useState("");
-  const [rows, setRows] = useState(initialRows);
+  const [draftMarks, setDraftMarks] = useState({});
+  const [feedback, setFeedback] = useState({ type: "", message: "" });
 
-  const selectedClassObj = useMemo(
-    () => mockTeacher.classes.find((course) => course.code === selectedClass),
-    [selectedClass]
+  const teacher = getTeacherById(user.id);
+  const classOptions = teacher?.assignedClasses || [];
+
+  const selectedCourse = useMemo(
+    () => courses.find((course) => course.classCode === selectedClass) || null,
+    [courses, selectedClass]
   );
 
+  const getClassLabel = (classCode) => {
+    const course = courses.find((entry) => entry.classCode === classCode);
+    return course ? `${classCode} - ${course.name}` : classCode;
+  };
+
+  const rows = useMemo(() => {
+    const students = studentsByClass[selectedClass] || [];
+
+    return students.map((student) => {
+      const mark = marksWithComputed.find(
+        (entry) =>
+          entry.studentId === student.id &&
+          entry.classCode === selectedClass &&
+          entry.courseCode === selectedCourse?.code
+      );
+
+      const current = draftMarks[student.id];
+      const obtained =
+        current ??
+        (assessment === "Quiz 1"
+          ? mark?.assessments.quiz
+          : assessment === "Assignment 1"
+            ? mark?.assessments.assignment
+            : assessment === "Mid Term"
+              ? mark?.assessments.mid
+              : assessment === "Final"
+                ? mark?.assessments.final
+                : 0) ?? 0;
+
+      return {
+        id: student.id,
+        name: student.name,
+        total: 100,
+        obtained,
+        percentage: mark?.percentage ?? 0,
+        grade: mark?.grade ?? "N/A",
+      };
+    });
+  }, [studentsByClass, selectedClass, marksWithComputed, selectedCourse, assessment, draftMarks]);
+
   const handleMarksChange = (id, value) => {
-    setRows((prev) =>
-      prev.map((row) =>
-        row.id === id
-          ? { ...row, obtained: Math.max(0, Math.min(100, Number(value) || 0)) }
-          : row
-      )
-    );
+    setDraftMarks((prev) => ({
+      ...prev,
+      [id]: Math.max(0, Math.min(100, Number(value) || 0)),
+    }));
   };
 
   const handleSave = () => {
-    if (!selectedClassObj || !assessment) {
+    if (!selectedClass || !assessment || !selectedCourse) {
+      setFeedback({ type: "error", message: "Please select class and assessment." });
       return;
     }
 
-    alert(`Marks saved for ${assessment} in ${selectedClassObj.name}`);
+    const result = upsertMarksForClassAssessment({
+      teacherId: user.id,
+      classCode: selectedClass,
+      courseCode: selectedCourse.code,
+      assessment,
+      rows: rows.map((row) => ({ studentId: row.id, obtained: row.obtained })),
+    });
+
+    setFeedback({ type: result.ok ? "success" : "error", message: result.message });
+    if (result.ok) {
+      setDraftMarks({});
+    }
   };
 
   return (
@@ -59,9 +116,9 @@ export default function ManageMarks() {
             className="input-glass"
           >
             <option value="">Select Class</option>
-            {mockTeacher.classes.map((course) => (
-              <option key={course.code} value={course.code}>
-                {course.code} - {course.name}
+            {classOptions.map((classCode) => (
+              <option key={classCode} value={classCode}>
+                {getClassLabel(classCode)}
               </option>
             ))}
           </select>
@@ -91,6 +148,7 @@ export default function ManageMarks() {
                   <th>Total Marks</th>
                   <th>Obtained Marks</th>
                   <th>Percentage</th>
+                  <th>Final Grade</th>
                 </tr>
               </thead>
               <tbody>
@@ -98,7 +156,10 @@ export default function ManageMarks() {
                   const percentage = ((row.obtained / row.total) * 100).toFixed(0);
 
                   return (
-                    <tr key={row.id} className={index % 2 === 0 ? "bg-white/35" : "bg-white/10"}>
+                    <tr
+                      key={row.id}
+                      className={index % 2 === 0 ? "table-row-even" : "table-row-odd"}
+                    >
                       <td>{row.id}</td>
                       <td>{row.name}</td>
                       <td>{row.total}</td>
@@ -113,6 +174,7 @@ export default function ManageMarks() {
                         />
                       </td>
                       <td>{percentage}%</td>
+                      <td>{row.grade}</td>
                     </tr>
                   );
                 })}
@@ -123,6 +185,17 @@ export default function ManageMarks() {
           <button type="button" onClick={handleSave} className="btn-primary mt-4">
             Save Marks
           </button>
+
+          {feedback.message ? (
+            <p
+              className={[
+                "mt-3 text-sm font-semibold",
+                feedback.type === "error" ? "text-[var(--color-danger)]" : "text-emerald-700",
+              ].join(" ")}
+            >
+              {feedback.message}
+            </p>
+          ) : null}
         </section>
       ) : null}
     </Layout>

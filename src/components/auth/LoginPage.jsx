@@ -16,20 +16,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const inferRole = (value) => {
-    const normalized = value.trim().toLowerCase();
-
-    if (normalized.includes("admin")) {
-      return "Admin";
-    }
-
-    if (normalized.includes("teacher") || normalized.includes("faculty")) {
-      return "Teacher";
-    }
-
-    return "Student";
-  };
-
   const handleLogin = (event) => {
     event.preventDefault();
 
@@ -38,12 +24,20 @@ export default function LoginPage() {
       return;
     }
 
-    const selectedRole = inferRole(username);
+    if (!password.trim()) {
+      setError("Please enter a password.");
+      return;
+    }
+
+    const result = login(username, password);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
 
     setError("");
 
-    login(selectedRole, username || "Demo User");
-    navigate(roleToPath[selectedRole]);
+    navigate(roleToPath[result.user.role]);
   };
 
   return (
@@ -88,10 +82,10 @@ export default function LoginPage() {
 
         <div className="space-y-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6d84a0]">
+            <p className="text-soft text-xs font-semibold uppercase tracking-[0.2em]">
               Welcome Back
             </p>
-            <h2 className="mt-1 text-3xl font-extrabold tracking-tight text-[#10243f]">
+            <h2 className="text-main mt-1 text-3xl font-extrabold tracking-tight">
               Sign In
             </h2>
           </div>
@@ -115,6 +109,14 @@ export default function LoginPage() {
 
           <button type="submit" className="btn-primary w-full py-3 text-base">
             LOGIN TO DASHBOARD
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/forgot-password")}
+            className="btn-ghost w-full"
+          >
+            Forgot Password?
           </button>
         </div>
 

@@ -1,14 +1,27 @@
 import Layout from "../shared/Layout";
-import mockAttendance from "../../data/mockAttendance";
+import { useAuth } from "../../context/AuthContext";
+import { useAppData } from "../../context/AppDataContext";
 
 const links = [
   { label: "Dashboard", path: "/student/dashboard" },
   { label: "My Profile", path: "/student/profile" },
   { label: "Attendance", path: "/student/attendance" },
   { label: "My Marks", path: "/student/marks" },
+  { label: "Insights", path: "/student/insights" },
 ];
 
 export default function AttendancePage() {
+  const { user } = useAuth();
+  const { attendanceSummaryByStudent, attendanceRecords, courses } = useAppData();
+
+  const courseRows = attendanceSummaryByStudent.filter((row) => row.studentId === user.id);
+  const datedRows = attendanceRecords
+    .filter((row) => row.studentId === user.id)
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  const getCourseNameByCode = (courseCode) =>
+    courses.find((course) => course.code === courseCode)?.name || "Unknown Course";
+
   return (
     <Layout links={links}>
       <section className="glass-panel p-5">
@@ -17,7 +30,7 @@ export default function AttendancePage() {
       </section>
 
       <section className="mt-4 space-y-3">
-        {mockAttendance.map((course) => {
+        {courseRows.map((course) => {
           const isGood = course.percentage >= 75;
 
           return (
@@ -27,8 +40,9 @@ export default function AttendancePage() {
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="font-bold text-[#1f3f61]">{course.courseCode}</p>
-                  <p className="text-[#4f6c8a]">{course.courseName}</p>
+                  <p className="text-main font-bold">{course.courseCode}</p>
+                  <p className="text-soft">{getCourseNameByCode(course.courseCode)}</p>
+                  <p className="text-soft">Class: {course.classCode}</p>
                 </div>
                 <span
                   className={[
@@ -40,13 +54,13 @@ export default function AttendancePage() {
                 </span>
               </div>
 
-              <div className="mt-2 flex flex-wrap gap-4 text-sm text-[#6d84a0]">
+              <div className="text-soft mt-2 flex flex-wrap gap-4 text-sm">
                 <p>Present: {course.present}</p>
                 <p>Absent: {course.absent}</p>
                 <p>Total: {course.total}</p>
               </div>
 
-              <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/70">
+              <div className="mt-3 h-3 overflow-hidden rounded-full" style={{ background: "var(--surface-soft-bg)" }}>
                 <div
                   style={{ width: `${course.percentage}%` }}
                   className={[
@@ -58,6 +72,32 @@ export default function AttendancePage() {
             </article>
           );
         })}
+      </section>
+
+      <section className="glass-panel mt-4 p-5">
+        <h2 className="text-main text-lg font-bold">Attendance By Date</h2>
+        <div className="table-shell mt-3">
+          <table className="table-glass min-w-[700px]">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Course</th>
+                <th>Session</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {datedRows.map((row, index) => (
+                <tr key={row.id} className={index % 2 === 0 ? "table-row-even" : "table-row-odd"}>
+                  <td>{row.date}</td>
+                  <td>{row.courseCode} - {getCourseNameByCode(row.courseCode)}</td>
+                  <td>{row.session}</td>
+                  <td>{row.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </Layout>
   );

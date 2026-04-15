@@ -8,8 +8,8 @@ export default function NotFoundPage() {
 
       <div className="glass-panel-strong w-full max-w-md p-8 text-center">
         <p className="text-6xl font-extrabold text-[var(--color-primary)]">404</p>
-        <h1 className="mt-2 text-2xl font-semibold text-[#10243f]">Page Not Found</h1>
-        <p className="mt-2 text-[color:var(--text-soft)]">
+        <h1 className="text-main mt-2 text-2xl font-semibold">Page Not Found</h1>
+        <p className="text-soft mt-2">
           The page you are looking for does not exist.
         </p>
         <Link

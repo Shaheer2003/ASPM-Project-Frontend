@@ -1,25 +1,20 @@
 import { createContext, useContext, useMemo, useState } from "react";
+import { useAppData } from "./AppDataContext";
 
 const AuthContext = createContext(null);
 
-const roleToIdPrefix = {
-  Admin: "ADM",
-  Teacher: "TCH",
-  Student: "STD",
-};
-
 export function AuthProvider({ children }) {
+  const { authenticate } = useAppData();
   const [user, setUser] = useState(null);
 
-  const login = (role, name) => {
-    const safeName = name?.trim() || "Demo User";
-    const idPrefix = roleToIdPrefix[role] || "USR";
+  const login = (username, password) => {
+    const result = authenticate(username, password);
+    if (!result.ok) {
+      return result;
+    }
 
-    setUser({
-      name: safeName,
-      role,
-      id: `${idPrefix}-001`,
-    });
+    setUser(result.user);
+    return { ok: true, user: result.user };
   };
 
   const logout = () => {
@@ -28,7 +23,7 @@ export function AuthProvider({ children }) {
 
   const value = useMemo(
     () => ({ user, isAuthenticated: Boolean(user), login, logout }),
-    [user]
+    [user, authenticate]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

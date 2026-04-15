@@ -13,22 +13,22 @@ export default function Navbar({ onMenuToggle }) {
   };
 
   return (
-    <header className="fixed left-0 right-0 top-0 z-30 border-b border-white/60 bg-white/65 text-[#122949] backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-6">
+    <header className="fixed left-0 right-0 top-0 z-30 border-b backdrop-blur-xl" style={{ borderColor: "var(--glass-border)", background: "var(--nav-bg)", color: "var(--text-main)" }}>
+      <div className="flex h-16 w-full items-center justify-between px-4 md:px-8 lg:px-10">
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="rounded-lg border border-white/60 bg-white/60 p-1.5 text-[#17355a] md:hidden"
+            className="btn-ghost rounded-lg p-1.5 md:hidden"
             onClick={onMenuToggle}
             aria-label="Open sidebar"
           >
             <Menu size={20} />
           </button>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#6d84a0]">
+            <p className="text-soft text-xs font-semibold uppercase tracking-[0.22em]">
               Mini-Flex
             </p>
-            <p className="text-base font-extrabold tracking-tight text-[#10243f]">
+            <p className="text-main text-base font-extrabold tracking-tight">
               Student Portal
             </p>
           </div>
@@ -36,7 +36,7 @@ export default function Navbar({ onMenuToggle }) {
 
         <div className="flex items-center gap-3 text-sm">
           <ThemeToggleButton className="px-2.5 py-1.5" />
-          <span className="hidden rounded-xl border border-white/70 bg-white/70 px-3 py-1.5 font-semibold text-[#20456e] shadow-sm sm:inline">
+          <span className="surface-soft text-main hidden px-3 py-1.5 font-semibold shadow-sm sm:inline">
             {user?.name}
           </span>
           <button

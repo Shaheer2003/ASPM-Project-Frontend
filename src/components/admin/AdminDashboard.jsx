@@ -4,7 +4,7 @@ const links = [
   { label: "Dashboard", path: "/admin/dashboard" },
   { label: "Manage Users", path: "/admin/manage-users" },
   { label: "Register User", path: "/admin/register-user" },
-  { label: "System Settings", path: "#" },
+  { label: "Attendance Reports", path: "/admin/attendance-reports" },
 ];
 
 const activities = [
@@ -30,22 +30,22 @@ export default function AdminDashboard() {
           { label: "Total Courses", value: 120 },
         ].map((item) => (
           <article key={item.label} className="stat-card">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#6683a2]">{item.label}</p>
+            <p className="text-soft text-xs font-semibold uppercase tracking-wider">{item.label}</p>
             <p className="mt-2 text-4xl font-extrabold text-[var(--color-primary)]">{item.value}</p>
           </article>
         ))}
       </section>
 
       <section className="glass-panel mt-4 p-5">
-        <h2 className="text-xl font-bold text-[#16314f]">Recent Activity</h2>
+        <h2 className="text-main text-xl font-bold">Recent Activity</h2>
         <div className="mt-3 space-y-2">
           {activities.map((activity) => (
             <div
               key={`${activity.label}-${activity.time}`}
-              className="flex items-center justify-between rounded-xl border border-white/70 bg-white/65 px-3 py-2.5 backdrop-blur-xl"
+              className="surface-soft flex items-center justify-between px-3 py-2.5"
             >
-              <p className="font-medium text-[#264665]">{activity.label}</p>
-              <p className="text-sm text-[#6c83a0]">{activity.time}</p>
+              <p className="text-main font-medium">{activity.label}</p>
+              <p className="text-soft text-sm">{activity.time}</p>
             </div>
           ))}
         </div>

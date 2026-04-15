@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../shared/Layout";
+import { useAppData } from "../../context/AppDataContext";
 
 const links = [
   { label: "Dashboard", path: "/admin/dashboard" },
   { label: "Manage Users", path: "/admin/manage-users" },
   { label: "Register User", path: "/admin/register-user" },
-  { label: "System Settings", path: "#" },
+  { label: "Attendance Reports", path: "/admin/attendance-reports" },
 ];
 
 const initialValues = {
@@ -16,25 +17,32 @@ const initialValues = {
   phone: "",
   department: "",
   userId: "",
+  classCode: "",
   dob: "",
   gender: "",
   address: "",
 };
 
 export default function RegisterUser() {
+  const { addStudent, addTeacher } = useAppData();
   const navigate = useNavigate();
   const [userType, setUserType] = useState("Student");
   const [formValues, setFormValues] = useState(initialValues);
   const [touched, setTouched] = useState({});
+  const [feedback, setFeedback] = useState({ type: "", message: "" });
 
-  const requiredKeys = useMemo(
-    () => ["firstName", "lastName", "email", "department", "userId"],
-    []
-  );
+  const requiredKeys = useMemo(() => {
+    if (userType === "Student") {
+      return ["firstName", "lastName", "email", "department", "userId", "classCode"];
+    }
+
+    return ["firstName", "lastName", "email", "department", "userId"];
+  }, [userType]);
 
   const hasError = (key) => touched[key] && !formValues[key].trim();
 
   const handleChange = (key, value) => {
+    setFeedback({ type: "", message: "" });
     setFormValues((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -58,7 +66,31 @@ export default function RegisterUser() {
       return;
     }
 
-    alert("User registered successfully");
+    const name = `${formValues.firstName} ${formValues.lastName}`.trim();
+    const payload = {
+      name,
+      email: formValues.email,
+      department: formValues.department,
+    };
+
+    const result =
+      userType === "Student"
+        ? addStudent({
+            ...payload,
+            studentId: formValues.userId,
+            classCode: formValues.classCode,
+          })
+        : addTeacher({
+            ...payload,
+            employeeId: formValues.userId,
+          });
+
+    if (!result.ok) {
+      setFeedback({ type: "error", message: result.message });
+      return;
+    }
+
+    setFeedback({ type: "success", message: result.message });
     handleReset();
   };
 
@@ -86,7 +118,7 @@ export default function RegisterUser() {
               onClick={() => setUserType(type)}
               className={[
                 "tab-chip",
-                userType === type ? "tab-chip-active" : "hover:border-white hover:bg-white",
+                userType === type ? "tab-chip-active" : "hover:brightness-105",
               ].join(" ")}
             >
               {type}
@@ -96,41 +128,52 @@ export default function RegisterUser() {
 
         <div className="grid gap-4 md:grid-cols-2">
           <label>
-            <span className="mb-1 block text-sm font-medium text-[#5b7593]">First Name</span>
+            <span className="text-soft mb-1 block text-sm font-medium">First Name</span>
             <input className={inputClass("firstName")} value={formValues.firstName} onChange={(e) => handleChange("firstName", e.target.value)} />
           </label>
           <label>
-            <span className="mb-1 block text-sm font-medium text-[#5b7593]">Last Name</span>
+            <span className="text-soft mb-1 block text-sm font-medium">Last Name</span>
             <input className={inputClass("lastName")} value={formValues.lastName} onChange={(e) => handleChange("lastName", e.target.value)} />
           </label>
           <label>
-            <span className="mb-1 block text-sm font-medium text-[#5b7593]">Email</span>
+            <span className="text-soft mb-1 block text-sm font-medium">Email</span>
             <input className={inputClass("email")} value={formValues.email} onChange={(e) => handleChange("email", e.target.value)} />
           </label>
           <label>
-            <span className="mb-1 block text-sm font-medium text-[#5b7593]">Phone</span>
+            <span className="text-soft mb-1 block text-sm font-medium">Phone</span>
             <input className={inputClass("phone")} value={formValues.phone} onChange={(e) => handleChange("phone", e.target.value)} />
           </label>
           <label>
-            <span className="mb-1 block text-sm font-medium text-[#5b7593]">Department</span>
+            <span className="text-soft mb-1 block text-sm font-medium">Department</span>
             <input className={inputClass("department")} value={formValues.department} onChange={(e) => handleChange("department", e.target.value)} />
           </label>
           <label>
-            <span className="mb-1 block text-sm font-medium text-[#5b7593]">
+            <span className="text-soft mb-1 block text-sm font-medium">
               {userType === "Student" ? "Student ID" : "Employee ID"}
             </span>
             <input className={inputClass("userId")} value={formValues.userId} onChange={(e) => handleChange("userId", e.target.value)} />
           </label>
+          {userType === "Student" ? (
+            <label>
+              <span className="text-soft mb-1 block text-sm font-medium">Class</span>
+              <input
+                className={inputClass("classCode")}
+                value={formValues.classCode}
+                onChange={(e) => handleChange("classCode", e.target.value)}
+                placeholder="e.g. SE303-A"
+              />
+            </label>
+          ) : null}
           <label>
-            <span className="mb-1 block text-sm font-medium text-[#5b7593]">Date of Birth (DD/MM/YYYY)</span>
+            <span className="text-soft mb-1 block text-sm font-medium">Date of Birth (DD/MM/YYYY)</span>
             <input className={inputClass("dob")} value={formValues.dob} onChange={(e) => handleChange("dob", e.target.value)} />
           </label>
           <label>
-            <span className="mb-1 block text-sm font-medium text-[#5b7593]">Gender</span>
+            <span className="text-soft mb-1 block text-sm font-medium">Gender</span>
             <input className={inputClass("gender")} value={formValues.gender} onChange={(e) => handleChange("gender", e.target.value)} />
           </label>
           <label className="md:col-span-2">
-            <span className="mb-1 block text-sm font-medium text-[#5b7593]">Address</span>
+            <span className="text-soft mb-1 block text-sm font-medium">Address</span>
             <textarea
               className={inputClass("address")}
               rows={4}
@@ -159,6 +202,17 @@ export default function RegisterUser() {
             Register User
           </button>
         </div>
+
+        {feedback.message ? (
+          <p
+            className={[
+              "mt-3 text-sm font-semibold",
+              feedback.type === "error" ? "text-[var(--color-danger)]" : "text-emerald-700",
+            ].join(" ")}
+          >
+            {feedback.message}
+          </p>
+        ) : null}
       </form>
     </Layout>
   );

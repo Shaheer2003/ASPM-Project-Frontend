@@ -9,24 +9,32 @@ import {
   YAxis,
 } from "recharts";
 import Layout from "../shared/Layout";
-import mockMarks from "../../data/mockMarks";
+import { useAuth } from "../../context/AuthContext";
+import { useAppData } from "../../context/AppDataContext";
 
 const links = [
   { label: "Dashboard", path: "/student/dashboard" },
   { label: "My Profile", path: "/student/profile" },
   { label: "Attendance", path: "/student/attendance" },
   { label: "My Marks", path: "/student/marks" },
+  { label: "Insights", path: "/student/insights" },
 ];
 
-const trendData = mockMarks.map((course) => {
-  const totalRow = course.assessments.find((item) => item.name === "Total");
-  return {
-    course: course.courseCode,
-    percentage: totalRow?.percentage ?? 0,
-  };
-});
-
 export default function MyMarks() {
+  const { user } = useAuth();
+  const { marksWithComputed, courses } = useAppData();
+
+  const getCourseNameByCode = (courseCode) =>
+    courses.find((course) => course.code === courseCode)?.name || "Unknown Course";
+
+  const studentMarks = marksWithComputed.filter((row) => row.studentId === user.id);
+  const trendData = studentMarks.map((row) => ({
+    course: `${row.courseCode} - ${getCourseNameByCode(row.courseCode)}`,
+    percentage: row.percentage,
+  }));
+
+  const axisColor = "var(--text-soft)";
+
   return (
     <Layout links={links}>
       <section className="glass-panel p-5">
@@ -35,13 +43,13 @@ export default function MyMarks() {
       </section>
 
       <section className="glass-panel mt-4 p-5">
-        <h2 className="text-lg font-bold text-[#16314f]">Performance Trend</h2>
+        <h2 className="text-main text-lg font-bold">Performance Trend</h2>
         <div className="mt-2 h-64 w-full">
           <ResponsiveContainer>
             <LineChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#d8e4f2" />
-              <XAxis dataKey="course" tick={{ fill: "#5f7793" }} />
-              <YAxis domain={[0, 100]} tick={{ fill: "#5f7793" }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.28)" />
+              <XAxis dataKey="course" tick={{ fill: axisColor }} />
+              <YAxis domain={[0, 100]} tick={{ fill: axisColor }} />
               <Tooltip />
               <Legend />
               <Line
@@ -57,41 +65,60 @@ export default function MyMarks() {
       </section>
 
       <section className="mt-4 space-y-4">
-        {mockMarks.map((course) => (
-          <article key={course.courseCode} className="glass-panel p-5">
-            <h2 className="text-lg font-bold text-[#1f3f61]">
-              {course.courseCode} - {course.courseName}
+        {studentMarks.map((course) => (
+          <article key={course.id} className="glass-panel p-5">
+            <h2 className="text-main text-lg font-bold">
+              {course.courseCode} - {getCourseNameByCode(course.courseCode)}
             </h2>
 
             <div className="table-shell mt-3">
               <table className="table-glass min-w-[700px]">
                 <thead>
                   <tr>
-                    <th>Assessment</th>
-                    <th>Total Marks</th>
+                    <th>Component</th>
+                    <th>Total</th>
                     <th>Obtained</th>
                     <th>Percentage</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {course.assessments.map((assessment, index) => (
-                    <tr
-                      key={`${course.courseCode}-${assessment.name}`}
-                      className={index % 2 === 0 ? "bg-white/35" : "bg-white/10"}
-                    >
-                      <td
-                        className={[
-                          "text-sm",
-                          assessment.name === "Total" ? "font-bold" : "",
-                        ].join(" ")}
-                      >
-                        {assessment.name}
-                      </td>
-                      <td>{assessment.total}</td>
-                      <td>{assessment.obtained}</td>
-                      <td>{assessment.percentage}%</td>
-                    </tr>
-                  ))}
+                  {[
+                    {
+                      name: "Quiz 1",
+                      total: course.totals.quiz,
+                      obtained: course.assessments.quiz,
+                    },
+                    {
+                      name: "Assignment 1",
+                      total: course.totals.assignment,
+                      obtained: course.assessments.assignment,
+                    },
+                    {
+                      name: "Mid Term",
+                      total: course.totals.mid,
+                      obtained: course.assessments.mid,
+                    },
+                    {
+                      name: "Final",
+                      total: course.totals.final,
+                      obtained: course.assessments.final,
+                    },
+                    {
+                      name: "Total",
+                      total: course.total,
+                      obtained: course.obtained,
+                    },
+                  ].map((row, index) => {
+                    const percentage = row.total > 0 ? Math.round((row.obtained / row.total) * 100) : 0;
+                    return (
+                      <tr key={`${course.id}-${row.name}`} className={index % 2 === 0 ? "table-row-even" : "table-row-odd"}>
+                        <td className={row.name === "Total" ? "font-bold" : ""}>{row.name}</td>
+                        <td>{row.total}</td>
+                        <td>{row.obtained}</td>
+                        <td>{percentage}%</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

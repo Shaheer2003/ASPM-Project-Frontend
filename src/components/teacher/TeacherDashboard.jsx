@@ -1,13 +1,38 @@
+import { useState } from "react";
 import Layout from "../shared/Layout";
-import mockTeacher from "../../data/mockTeacher";
+import { useAuth } from "../../context/AuthContext";
+import { useAppData } from "../../context/AppDataContext";
 
 const links = [
   { label: "Dashboard", path: "/teacher/dashboard" },
+  { label: "Student Profiles", path: "/teacher/students" },
   { label: "Mark Attendance", path: "/teacher/attendance" },
   { label: "Manage Marks", path: "/teacher/marks" },
+  { label: "Reports", path: "/teacher/reports" },
 ];
 
 export default function TeacherDashboard() {
+  const { user } = useAuth();
+  const { getTeacherById, studentsByClass, courses } = useAppData();
+  const [selectedClassCode, setSelectedClassCode] = useState("");
+
+  const teacher = getTeacherById(user.id);
+  const assignedClasses = teacher?.assignedClasses || [];
+  const totalStudents = assignedClasses.reduce(
+    (sum, classCode) => sum + (studentsByClass[classCode]?.length || 0),
+    0
+  );
+  const selectedStudents = selectedClassCode ? studentsByClass[selectedClassCode] || [] : [];
+
+  const getClassLabel = (classCode) => {
+    const course = courses.find((entry) => entry.classCode === classCode);
+    return course ? `${classCode} - ${course.name}` : classCode;
+  };
+
+  const handleViewClass = (classCode) => {
+    setSelectedClassCode((current) => (current === classCode ? "" : classCode));
+  };
+
   return (
     <Layout links={links}>
       <section className="glass-panel p-5">
@@ -17,43 +42,76 @@ export default function TeacherDashboard() {
 
       <section className="mt-4 grid gap-4 md:grid-cols-3">
         {[
-          { label: "Total Classes", value: mockTeacher.totalClasses },
-          { label: "Total Students", value: mockTeacher.totalStudents },
-          { label: "Pending Tasks", value: mockTeacher.pendingTasks },
+          { label: "Total Classes", value: assignedClasses.length },
+          { label: "Total Students", value: totalStudents },
+          { label: "Pending Tasks", value: 5 },
         ].map((item) => (
           <article key={item.label} className="stat-card">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#6683a2]">{item.label}</p>
+            <p className="text-soft text-xs font-semibold uppercase tracking-wider">{item.label}</p>
             <p className="mt-2 text-4xl font-extrabold text-[var(--color-primary)]">{item.value}</p>
           </article>
         ))}
       </section>
 
       <section className="glass-panel mt-4 p-5">
-        <h2 className="text-xl font-bold text-[#16314f]">My Classes</h2>
+        <h2 className="text-main text-xl font-bold">My Classes</h2>
         <div className="mt-3 space-y-3">
-          {mockTeacher.classes.map((course) => (
+          {assignedClasses.map((classCode) => (
             <article
-              key={`${course.code}-${course.section}`}
-              className="flex flex-col gap-3 rounded-xl border border-white/60 bg-white/60 p-4 backdrop-blur-xl md:flex-row md:items-center md:justify-between"
+              key={classCode}
+              className="surface-soft flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between"
             >
               <div>
-                <p className="text-base font-bold text-[#1f3f61]">{course.code}</p>
-                <p className="text-[#315172]">{course.name}</p>
-                <p className="text-sm text-[#6b84a0]">
-                  Section {course.section} | Students: {course.students}
+                <p className="text-main text-base font-bold">{getClassLabel(classCode)}</p>
+                <p className="text-main">Assigned Class</p>
+                <p className="text-soft text-sm">
+                  Students: {studentsByClass[classCode]?.length || 0}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => alert(`Viewing ${course.name}`)}
+                onClick={() => handleViewClass(classCode)}
                 className="btn-ghost self-start"
               >
-                View
+                {selectedClassCode === classCode ? "Hide" : "View"}
               </button>
             </article>
           ))}
         </div>
       </section>
+
+      {selectedClassCode ? (
+        <section className="glass-panel mt-4 p-5">
+          <h2 className="text-main text-xl font-bold">Students in {getClassLabel(selectedClassCode)}</h2>
+
+          {selectedStudents.length === 0 ? (
+            <p className="text-soft mt-3">No students found for this class.</p>
+          ) : (
+            <div className="table-shell mt-3">
+              <table className="table-glass min-w-[760px]">
+                <thead>
+                  <tr>
+                    <th>Student ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Department</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedStudents.map((student) => (
+                    <tr key={student.id} className="table-row-odd">
+                      <td>{student.id}</td>
+                      <td>{student.name}</td>
+                      <td>{student.email}</td>
+                      <td>{student.department}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      ) : null}
     </Layout>
   );
 }
