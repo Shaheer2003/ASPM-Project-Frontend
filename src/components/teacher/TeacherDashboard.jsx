@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Layout from "../shared/Layout";
-import { useAuth } from "../../context/AuthContext";
 import { useAppData } from "../../context/AppDataContext";
 
 const links = [
@@ -12,17 +11,48 @@ const links = [
 ];
 
 export default function TeacherDashboard() {
-  const { user } = useAuth();
-  const { getTeacherById, studentsByClass, courses } = useAppData();
+  const { fetchTeacherProfile, fetchTeacherStudents, courses } = useAppData();
   const [selectedClassCode, setSelectedClassCode] = useState("");
+  const [assignedClasses, setAssignedClasses] = useState([]);
+  const [classStudents, setClassStudents] = useState({});
+  const [error, setError] = useState("");
 
-  const teacher = getTeacherById(user.id);
-  const assignedClasses = teacher?.assignedClasses || [];
+  useEffect(() => {
+    const loadTeacher = async () => {
+      const result = await fetchTeacherProfile();
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      setAssignedClasses(result.data.assignedClasses || []);
+    };
+
+    loadTeacher();
+  }, [fetchTeacherProfile]);
+
+  useEffect(() => {
+    if (!selectedClassCode || classStudents[selectedClassCode]) {
+      return;
+    }
+
+    const loadStudents = async () => {
+      const result = await fetchTeacherStudents(selectedClassCode);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+
+      setClassStudents((prev) => ({ ...prev, [selectedClassCode]: result.data }));
+    };
+
+    loadStudents();
+  }, [selectedClassCode, classStudents, fetchTeacherStudents]);
+
   const totalStudents = assignedClasses.reduce(
-    (sum, classCode) => sum + (studentsByClass[classCode]?.length || 0),
+    (sum, classCode) => sum + (classStudents[classCode]?.length || 0),
     0
   );
-  const selectedStudents = selectedClassCode ? studentsByClass[selectedClassCode] || [] : [];
+  const selectedStudents = selectedClassCode ? classStudents[selectedClassCode] || [] : [];
 
   const getClassLabel = (classCode) => {
     const course = courses.find((entry) => entry.classCode === classCode);
@@ -65,7 +95,7 @@ export default function TeacherDashboard() {
                 <p className="text-main text-base font-bold">{getClassLabel(classCode)}</p>
                 <p className="text-main">Assigned Class</p>
                 <p className="text-soft text-sm">
-                  Students: {studentsByClass[classCode]?.length || 0}
+                  Students: {classStudents[classCode]?.length || 0}
                 </p>
               </div>
               <button
@@ -110,6 +140,12 @@ export default function TeacherDashboard() {
               </table>
             </div>
           )}
+        </section>
+      ) : null}
+
+      {error ? (
+        <section className="glass-panel mt-4 p-5">
+          <p className="text-sm font-semibold text-[var(--color-danger)]">{error}</p>
         </section>
       ) : null}
     </Layout>

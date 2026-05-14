@@ -1,5 +1,5 @@
+import { useEffect, useState } from "react";
 import Layout from "../shared/Layout";
-import { useAuth } from "../../context/AuthContext";
 import { useAppData } from "../../context/AppDataContext";
 
 const links = [
@@ -11,10 +11,24 @@ const links = [
 ];
 
 export default function MyProfile() {
-  const { user } = useAuth();
-  const { getStudentOverview, courses } = useAppData();
+  const { fetchStudentProfile, courses } = useAppData();
+  const [overview, setOverview] = useState({ student: null, marks: [], attendance: [] });
+  const [error, setError] = useState("");
 
-  const overview = getStudentOverview(user.id);
+  useEffect(() => {
+    const loadProfile = async () => {
+      const result = await fetchStudentProfile();
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+
+      setOverview(result.data);
+    };
+
+    loadProfile();
+  }, [fetchStudentProfile]);
+
   const student = overview.student;
 
   const getCourseNameByCode = (courseCode) =>
@@ -60,8 +74,8 @@ export default function MyProfile() {
               </tr>
             </thead>
             <tbody>
-              {overview.markRows.map((row, index) => {
-                const attendance = overview.attendanceRows.find(
+              {overview.marks.map((row, index) => {
+                const attendance = overview.attendance.find(
                   (entry) => entry.courseCode === row.courseCode
                 );
                 return (
@@ -77,6 +91,12 @@ export default function MyProfile() {
           </table>
         </div>
       </section>
+
+      {error ? (
+        <section className="glass-panel mt-4 p-5">
+          <p className="text-sm font-semibold text-[var(--color-danger)]">{error}</p>
+        </section>
+      ) : null}
     </Layout>
   );
 }

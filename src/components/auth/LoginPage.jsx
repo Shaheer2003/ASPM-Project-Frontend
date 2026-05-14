@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleLogin = (event) => {
+  const handleLogin = async (event) => {
     event.preventDefault();
 
     if (!username.trim()) {
@@ -29,7 +29,7 @@ export default function LoginPage() {
       return;
     }
 
-    const result = login(username, password);
+    const result = await login(username, password);
     if (!result.ok) {
       setError(result.message);
       return;

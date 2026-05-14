@@ -12,7 +12,7 @@ export default function ResetPasswordPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
     setMessage("");
@@ -22,7 +22,7 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    const result = resetPassword({ token, newPassword });
+    const result = await resetPassword({ token, newPassword });
     if (!result.ok) {
       setError(result.message);
       return;

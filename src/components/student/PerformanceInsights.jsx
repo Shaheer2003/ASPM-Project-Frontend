@@ -1,6 +1,6 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useEffect, useState } from "react";
 import Layout from "../shared/Layout";
-import { useAuth } from "../../context/AuthContext";
 import { useAppData } from "../../context/AppDataContext";
 
 const links = [
@@ -12,18 +12,32 @@ const links = [
 ];
 
 export default function PerformanceInsights() {
-  const { user } = useAuth();
-  const { getStudentOverview, courses } = useAppData();
+  const { fetchStudentInsights } = useAppData();
+  const [chartRows, setChartRows] = useState([]);
+  const [error, setError] = useState("");
 
-  const overview = getStudentOverview(user.id);
-  const getCourseNameByCode = (courseCode) =>
-    courses.find((course) => course.code === courseCode)?.name || "Unknown Course";
+  useEffect(() => {
+    const loadInsights = async () => {
+      const result = await fetchStudentInsights();
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
 
-  const chartRows = overview.markRows.map((row) => ({
-    course: `${row.courseCode} - ${getCourseNameByCode(row.courseCode)}`,
-    percentage: row.percentage,
-    grade: row.grade,
-  }));
+      const insights = result.data.insights || [];
+      setChartRows(
+        insights.map((row) => ({
+          course: row.courseName
+            ? `${row.courseCode} - ${row.courseName}`
+            : row.courseCode,
+          percentage: row.percentage,
+          grade: row.grade,
+        }))
+      );
+    };
+
+    loadInsights();
+  }, [fetchStudentInsights]);
 
   return (
     <Layout links={links}>
@@ -69,6 +83,12 @@ export default function PerformanceInsights() {
           </table>
         </div>
       </section>
+
+      {error ? (
+        <section className="glass-panel mt-4 p-5">
+          <p className="text-sm font-semibold text-[var(--color-danger)]">{error}</p>
+        </section>
+      ) : null}
     </Layout>
   );
 }

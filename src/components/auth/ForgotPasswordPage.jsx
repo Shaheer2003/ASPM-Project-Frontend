@@ -11,13 +11,13 @@ export default function ForgotPasswordPage() {
   const [tokenPreview, setTokenPreview] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
     setMessage("");
     setTokenPreview("");
 
-    const result = requestPasswordReset(email);
+    const result = await requestPasswordReset(email);
     if (!result.ok) {
       setError(result.message);
       return;

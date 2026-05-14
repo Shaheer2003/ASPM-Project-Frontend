@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Layout from "../shared/Layout";
 import { useAppData } from "../../context/AppDataContext";
-import { useAuth } from "../../context/AuthContext";
 
 const links = [
   { label: "Dashboard", path: "/teacher/dashboard" },
@@ -12,13 +11,12 @@ const links = [
 ];
 
 export default function MarkAttendance() {
-  const { user } = useAuth();
   const {
-    studentsByClass,
-    attendanceRecords,
+    fetchTeacherProfile,
+    fetchTeacherStudents,
+    fetchTeacherAttendance,
     markAttendance,
     updateAttendanceRecord,
-    getTeacherById,
     courses,
   } = useAppData();
 
@@ -27,32 +25,74 @@ export default function MarkAttendance() {
   const [session, setSession] = useState("");
   const [attendance, setAttendance] = useState({});
   const [feedback, setFeedback] = useState({ type: "", message: "" });
+  const [classOptions, setClassOptions] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [existingRows, setExistingRows] = useState([]);
 
-  const teacher = getTeacherById(user.id);
-  const classOptions = teacher?.assignedClasses || [];
-  const selectedStudents = studentsByClass[selectedClass] || [];
+  useEffect(() => {
+    const loadProfile = async () => {
+      const result = await fetchTeacherProfile();
+      if (!result.ok) {
+        setFeedback({ type: "error", message: result.message });
+        return;
+      }
+
+      setClassOptions(result.data.assignedClasses || []);
+    };
+
+    loadProfile();
+  }, [fetchTeacherProfile]);
+
+  useEffect(() => {
+    const loadStudents = async () => {
+      if (!selectedClass) {
+        setStudents([]);
+        return;
+      }
+
+      const result = await fetchTeacherStudents(selectedClass);
+      if (!result.ok) {
+        setFeedback({ type: "error", message: result.message });
+        return;
+      }
+
+      setStudents(result.data);
+    };
+
+    loadStudents();
+  }, [selectedClass, fetchTeacherStudents]);
+
+  useEffect(() => {
+    const loadAttendance = async () => {
+      if (!selectedClass || !date) {
+        setExistingRows([]);
+        return;
+      }
+
+      const result = await fetchTeacherAttendance({ classCode: selectedClass, date });
+      if (!result.ok) {
+        setFeedback({ type: "error", message: result.message });
+        return;
+      }
+
+      setExistingRows(result.data);
+    };
+
+    loadAttendance();
+  }, [selectedClass, date, fetchTeacherAttendance]);
+
+  const selectedStudents = students;
 
   const getClassLabel = (classCode) => {
     const course = courses.find((entry) => entry.classCode === classCode);
     return course ? `${classCode} - ${course.name}` : classCode;
   };
 
-  const existingRows = useMemo(
-    () =>
-      attendanceRecords.filter(
-        (record) =>
-          record.classCode === selectedClass &&
-          record.date === date &&
-          record.teacherId === user.id
-      ),
-    [attendanceRecords, selectedClass, date, user.id]
-  );
-
   const updateAttendance = (studentId, status) => {
     setAttendance((prev) => ({ ...prev, [studentId]: status }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedClass || !date || !session) {
       setFeedback({ type: "error", message: "Please select class, date and session." });
       return;
@@ -67,8 +107,7 @@ export default function MarkAttendance() {
       return;
     }
 
-    const result = markAttendance({
-      teacherId: user.id,
+    const result = await markAttendance({
       classCode: selectedClass,
       date,
       session,
@@ -78,8 +117,8 @@ export default function MarkAttendance() {
     setFeedback({ type: result.ok ? "success" : "error", message: result.message });
   };
 
-  const handleUpdateExisting = (recordId, status) => {
-    const result = updateAttendanceRecord(recordId, status);
+  const handleUpdateExisting = async (recordId, status) => {
+    const result = await updateAttendanceRecord(recordId, status);
     setFeedback({ type: result.ok ? "success" : "error", message: result.message });
   };
 

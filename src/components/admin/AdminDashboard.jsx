@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import Layout from "../shared/Layout";
+import { useAppData } from "../../context/AppDataContext";
 
 const links = [
   { label: "Dashboard", path: "/admin/dashboard" },
@@ -7,15 +9,33 @@ const links = [
   { label: "Attendance Reports", path: "/admin/attendance-reports" },
 ];
 
-const activities = [
-  { label: "Student registered", time: "Today, 9:30 AM" },
-  { label: "Teacher account updated", time: "Today, 10:45 AM" },
-  { label: "Course catalog synced", time: "Today, 11:20 AM" },
-  { label: "Attendance report viewed", time: "Today, 12:15 PM" },
-  { label: "User role changed", time: "Today, 1:05 PM" },
-];
-
 export default function AdminDashboard() {
+  const { fetchAdminDashboard, courses } = useAppData();
+  const [stats, setStats] = useState({
+    total_students: 0,
+    total_teachers: 0,
+    total_courses: 0,
+  });
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      const result = await fetchAdminDashboard();
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+
+      setStats({
+        total_students: result.data.total_students ?? 0,
+        total_teachers: result.data.total_teachers ?? 0,
+        total_courses: courses.length,
+      });
+    };
+
+    loadDashboard();
+  }, [fetchAdminDashboard, courses.length]);
+
   return (
     <Layout links={links}>
       <section className="glass-panel p-5">
@@ -25,9 +45,9 @@ export default function AdminDashboard() {
 
       <section className="mt-4 grid gap-4 md:grid-cols-3">
         {[
-          { label: "Total Students", value: 250 },
-          { label: "Total Teachers", value: 45 },
-          { label: "Total Courses", value: 120 },
+          { label: "Total Students", value: stats.total_students },
+          { label: "Total Teachers", value: stats.total_teachers },
+          { label: "Total Courses", value: stats.total_courses },
         ].map((item) => (
           <article key={item.label} className="stat-card">
             <p className="text-soft text-xs font-semibold uppercase tracking-wider">{item.label}</p>
@@ -36,20 +56,11 @@ export default function AdminDashboard() {
         ))}
       </section>
 
-      <section className="glass-panel mt-4 p-5">
-        <h2 className="text-main text-xl font-bold">Recent Activity</h2>
-        <div className="mt-3 space-y-2">
-          {activities.map((activity) => (
-            <div
-              key={`${activity.label}-${activity.time}`}
-              className="surface-soft flex items-center justify-between px-3 py-2.5"
-            >
-              <p className="text-main font-medium">{activity.label}</p>
-              <p className="text-soft text-sm">{activity.time}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      {error ? (
+        <section className="glass-panel mt-4 p-5">
+          <p className="text-sm font-semibold text-[var(--color-danger)]">{error}</p>
+        </section>
+      ) : null}
     </Layout>
   );
 }

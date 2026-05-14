@@ -1,5 +1,5 @@
+import { useEffect, useState } from "react";
 import Layout from "../shared/Layout";
-import { useAuth } from "../../context/AuthContext";
 import { useAppData } from "../../context/AppDataContext";
 
 const links = [
@@ -11,13 +11,27 @@ const links = [
 ];
 
 export default function AttendancePage() {
-  const { user } = useAuth();
-  const { attendanceSummaryByStudent, attendanceRecords, courses } = useAppData();
+  const { fetchStudentAttendance } = useAppData();
+  const [courseRows, setCourseRows] = useState([]);
+  const [datedRows, setDatedRows] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [error, setError] = useState("");
 
-  const courseRows = attendanceSummaryByStudent.filter((row) => row.studentId === user.id);
-  const datedRows = attendanceRecords
-    .filter((row) => row.studentId === user.id)
-    .sort((a, b) => b.date.localeCompare(a.date));
+  useEffect(() => {
+    const loadAttendance = async () => {
+      const result = await fetchStudentAttendance();
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+
+      setCourseRows(result.data.courses || []);
+      setDatedRows((result.data.dated_records || []).sort((a, b) => b.date.localeCompare(a.date)));
+      setCourses(result.data.course_list || []);
+    };
+
+    loadAttendance();
+  }, [fetchStudentAttendance]);
 
   const getCourseNameByCode = (courseCode) =>
     courses.find((course) => course.code === courseCode)?.name || "Unknown Course";
@@ -99,6 +113,12 @@ export default function AttendancePage() {
           </table>
         </div>
       </section>
+
+      {error ? (
+        <section className="glass-panel mt-4 p-5">
+          <p className="text-sm font-semibold text-[var(--color-danger)]">{error}</p>
+        </section>
+      ) : null}
     </Layout>
   );
 }

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Layout from "../shared/Layout";
 import { useAppData } from "../../context/AppDataContext";
-import { useAuth } from "../../context/AuthContext";
 import { exportCsv, exportPdfTable } from "../../utils/exporters";
 
 const links = [
@@ -13,20 +12,69 @@ const links = [
 ];
 
 export default function TeacherReports() {
-  const { user } = useAuth();
-  const { students, marksWithComputed, getTeacherById, courses } = useAppData();
+  const { fetchTeacherProfile, fetchTeacherStudents, fetchTeacherMarks, courses } = useAppData();
 
-  const teacher = getTeacherById(user.id);
-  const classOptions = teacher?.assignedClasses || [];
-
-  const [classCode, setClassCode] = useState(classOptions[0] || "");
+  const [classOptions, setClassOptions] = useState([]);
+  const [classCode, setClassCode] = useState("");
   const [studentId, setStudentId] = useState("ALL");
   const [toastMessage, setToastMessage] = useState("");
+  const [classStudents, setClassStudents] = useState([]);
+  const [marks, setMarks] = useState([]);
+  const [error, setError] = useState("");
 
-  const classStudents = useMemo(
-    () => students.filter((student) => student.classCode === classCode),
-    [students, classCode]
-  );
+  useEffect(() => {
+    const loadProfile = async () => {
+      const result = await fetchTeacherProfile();
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+
+      const options = result.data.assignedClasses || [];
+      setClassOptions(options);
+      setClassCode((prev) => prev || options[0] || "");
+    };
+
+    loadProfile();
+  }, [fetchTeacherProfile]);
+
+  useEffect(() => {
+    const loadStudents = async () => {
+      if (!classCode) {
+        setClassStudents([]);
+        return;
+      }
+
+      const result = await fetchTeacherStudents(classCode);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+
+      setClassStudents(result.data);
+    };
+
+    loadStudents();
+  }, [classCode, fetchTeacherStudents]);
+
+  useEffect(() => {
+    const loadMarks = async () => {
+      if (!classCode) {
+        setMarks([]);
+        return;
+      }
+
+      const result = await fetchTeacherMarks({ classCode });
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+
+      setMarks(result.data);
+    };
+
+    loadMarks();
+  }, [classCode, fetchTeacherMarks]);
 
   const getCourseNameByCode = (courseCode) =>
     courses.find((course) => course.code === courseCode)?.name || "Unknown Course";
@@ -37,12 +85,10 @@ export default function TeacherReports() {
   };
 
   const reportRows = useMemo(() => {
-    const filtered = marksWithComputed.filter((row) => row.classCode === classCode);
-
-    return filtered
+    return marks
       .filter((row) => studentId === "ALL" || row.studentId === studentId)
       .map((row) => {
-        const student = students.find((entry) => entry.id === row.studentId);
+        const student = classStudents.find((entry) => entry.id === row.studentId);
         return {
           studentId: row.studentId,
           studentName: student?.name || "Unknown",
@@ -54,7 +100,7 @@ export default function TeacherReports() {
           total: row.total,
         };
       });
-  }, [marksWithComputed, classCode, studentId, students, courses]);
+  }, [marks, studentId, classStudents, courses]);
 
   useEffect(() => {
     if (!toastMessage) {
@@ -190,6 +236,12 @@ export default function TeacherReports() {
         <div className="fixed right-4 top-20 z-40 rounded-xl border border-emerald-300/40 bg-emerald-500/20 px-4 py-2 text-sm font-semibold text-emerald-200 backdrop-blur-xl">
           {toastMessage}
         </div>
+      ) : null}
+
+      {error ? (
+        <section className="glass-panel mt-4 p-5">
+          <p className="text-sm font-semibold text-[var(--color-danger)]">{error}</p>
+        </section>
       ) : null}
     </Layout>
   );

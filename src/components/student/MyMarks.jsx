@@ -8,8 +8,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useEffect, useState } from "react";
 import Layout from "../shared/Layout";
-import { useAuth } from "../../context/AuthContext";
 import { useAppData } from "../../context/AppDataContext";
 
 const links = [
@@ -21,14 +21,30 @@ const links = [
 ];
 
 export default function MyMarks() {
-  const { user } = useAuth();
-  const { marksWithComputed, courses } = useAppData();
+  const { fetchStudentMarks } = useAppData();
+  const [marks, setMarks] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const loadMarks = async () => {
+      const result = await fetchStudentMarks();
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+
+      setMarks(result.data.marks || []);
+      setCourses(result.data.courses || []);
+    };
+
+    loadMarks();
+  }, [fetchStudentMarks]);
 
   const getCourseNameByCode = (courseCode) =>
     courses.find((course) => course.code === courseCode)?.name || "Unknown Course";
 
-  const studentMarks = marksWithComputed.filter((row) => row.studentId === user.id);
-  const trendData = studentMarks.map((row) => ({
+  const trendData = marks.map((row) => ({
     course: `${row.courseCode} - ${getCourseNameByCode(row.courseCode)}`,
     percentage: row.percentage,
   }));
@@ -65,7 +81,7 @@ export default function MyMarks() {
       </section>
 
       <section className="mt-4 space-y-4">
-        {studentMarks.map((course) => (
+        {marks.map((course) => (
           <article key={course.id} className="glass-panel p-5">
             <h2 className="text-main text-lg font-bold">
               {course.courseCode} - {getCourseNameByCode(course.courseCode)}
@@ -131,6 +147,12 @@ export default function MyMarks() {
           </article>
         ))}
       </section>
+
+      {error ? (
+        <section className="glass-panel mt-4 p-5">
+          <p className="text-sm font-semibold text-[var(--color-danger)]">{error}</p>
+        </section>
+      ) : null}
     </Layout>
   );
 }

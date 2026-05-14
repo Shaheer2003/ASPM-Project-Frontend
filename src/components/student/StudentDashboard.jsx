@@ -1,5 +1,5 @@
+import { useEffect, useState } from "react";
 import Layout from "../shared/Layout";
-import { useAuth } from "../../context/AuthContext";
 import { useAppData } from "../../context/AppDataContext";
 
 const links = [
@@ -11,25 +11,30 @@ const links = [
 ];
 
 export default function StudentDashboard() {
-  const { user } = useAuth();
-  const { getStudentOverview, courses } = useAppData();
+  const { fetchStudentDashboard, courses } = useAppData();
+  const [overview, setOverview] = useState({
+    marks: [],
+    attendance: [],
+    statistics: { total_courses: 0, average_attendance: 0, average_marks: 0, cgpa: 0 },
+  });
+  const [error, setError] = useState("");
 
-  const overview = getStudentOverview(user.id);
-  const averageAttendance =
-    overview.attendanceRows.length > 0
-      ? Math.round(
-          overview.attendanceRows.reduce((sum, row) => sum + row.percentage, 0) /
-            overview.attendanceRows.length
-        )
-      : 0;
+  useEffect(() => {
+    const loadDashboard = async () => {
+      const result = await fetchStudentDashboard();
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
 
-  const averageMarks =
-    overview.markRows.length > 0
-      ? Math.round(
-          overview.markRows.reduce((sum, row) => sum + row.percentage, 0) /
-            overview.markRows.length
-        )
-      : 0;
+      setOverview(result.data);
+    };
+
+    loadDashboard();
+  }, [fetchStudentDashboard]);
+
+  const averageAttendance = overview.statistics?.average_attendance ?? 0;
+  const averageMarks = overview.statistics?.average_marks ?? 0;
 
   const getCourseNameByCode = (courseCode) =>
     courses.find((course) => course.code === courseCode)?.name || "Unknown Course";
@@ -51,7 +56,7 @@ export default function StudentDashboard() {
 
       <section className="mt-4 grid gap-4 md:grid-cols-3">
         {[
-          { label: "Total Courses", value: overview.markRows.length },
+          { label: "Total Courses", value: overview.marks.length },
           { label: "Avg. Attendance", value: `${averageAttendance}%` },
           { label: "Avg. Marks", value: `${averageMarks}%` },
         ].map((item) => (
@@ -65,7 +70,7 @@ export default function StudentDashboard() {
       <section className="glass-panel mt-4 p-5">
         <h2 className="text-main text-xl font-bold">Enrolled Courses</h2>
         <div className="mt-3 space-y-2">
-          {overview.markRows.map((course) => (
+          {overview.marks.map((course) => (
             <div
               key={course.courseCode}
               className="surface-soft flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
@@ -82,6 +87,12 @@ export default function StudentDashboard() {
           ))}
         </div>
       </section>
+
+      {error ? (
+        <section className="glass-panel mt-4 p-5">
+          <p className="text-sm font-semibold text-[var(--color-danger)]">{error}</p>
+        </section>
+      ) : null}
     </Layout>
   );
 }

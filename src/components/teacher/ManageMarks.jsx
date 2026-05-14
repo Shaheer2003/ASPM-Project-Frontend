@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Layout from "../shared/Layout";
 import { useAppData } from "../../context/AppDataContext";
-import { useAuth } from "../../context/AuthContext";
 
 const links = [
   { label: "Dashboard", path: "/teacher/dashboard" },
@@ -12,22 +11,76 @@ const links = [
 ];
 
 export default function ManageMarks() {
-  const { user } = useAuth();
   const {
-    studentsByClass,
     courses,
-    marksWithComputed,
+    fetchTeacherProfile,
+    fetchTeacherStudents,
+    fetchTeacherMarks,
     upsertMarksForClassAssessment,
-    getTeacherById,
   } = useAppData();
 
   const [selectedClass, setSelectedClass] = useState("");
   const [assessment, setAssessment] = useState("");
   const [draftMarks, setDraftMarks] = useState({});
   const [feedback, setFeedback] = useState({ type: "", message: "" });
+  const [classOptions, setClassOptions] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [marksRecords, setMarksRecords] = useState([]);
 
-  const teacher = getTeacherById(user.id);
-  const classOptions = teacher?.assignedClasses || [];
+  useEffect(() => {
+    const loadProfile = async () => {
+      const result = await fetchTeacherProfile();
+      if (!result.ok) {
+        setFeedback({ type: "error", message: result.message });
+        return;
+      }
+
+      setClassOptions(result.data.assignedClasses || []);
+    };
+
+    loadProfile();
+  }, [fetchTeacherProfile]);
+
+  useEffect(() => {
+    const loadStudents = async () => {
+      if (!selectedClass) {
+        setStudents([]);
+        return;
+      }
+
+      const result = await fetchTeacherStudents(selectedClass);
+      if (!result.ok) {
+        setFeedback({ type: "error", message: result.message });
+        return;
+      }
+
+      setStudents(result.data);
+    };
+
+    loadStudents();
+  }, [selectedClass, fetchTeacherStudents]);
+
+  useEffect(() => {
+    const loadMarks = async () => {
+      if (!selectedClass || !selectedCourse) {
+        setMarksRecords([]);
+        return;
+      }
+
+      const result = await fetchTeacherMarks({
+        classCode: selectedClass,
+        courseCode: selectedCourse.code,
+      });
+      if (!result.ok) {
+        setFeedback({ type: "error", message: result.message });
+        return;
+      }
+
+      setMarksRecords(result.data);
+    };
+
+    loadMarks();
+  }, [selectedClass, selectedCourse, fetchTeacherMarks]);
 
   const selectedCourse = useMemo(
     () => courses.find((course) => course.classCode === selectedClass) || null,
@@ -40,14 +93,9 @@ export default function ManageMarks() {
   };
 
   const rows = useMemo(() => {
-    const students = studentsByClass[selectedClass] || [];
-
     return students.map((student) => {
-      const mark = marksWithComputed.find(
-        (entry) =>
-          entry.studentId === student.id &&
-          entry.classCode === selectedClass &&
-          entry.courseCode === selectedCourse?.code
+      const mark = marksRecords.find(
+        (entry) => entry.studentId === student.id && entry.courseCode === selectedCourse?.code
       );
 
       const current = draftMarks[student.id];
@@ -72,7 +120,7 @@ export default function ManageMarks() {
         grade: mark?.grade ?? "N/A",
       };
     });
-  }, [studentsByClass, selectedClass, marksWithComputed, selectedCourse, assessment, draftMarks]);
+  }, [students, marksRecords, selectedCourse, assessment, draftMarks]);
 
   const handleMarksChange = (id, value) => {
     setDraftMarks((prev) => ({
@@ -81,14 +129,13 @@ export default function ManageMarks() {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedClass || !assessment || !selectedCourse) {
       setFeedback({ type: "error", message: "Please select class and assessment." });
       return;
     }
 
-    const result = upsertMarksForClassAssessment({
-      teacherId: user.id,
+    const result = await upsertMarksForClassAssessment({
       classCode: selectedClass,
       courseCode: selectedCourse.code,
       assessment,

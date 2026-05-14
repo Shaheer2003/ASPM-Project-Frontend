@@ -11,35 +11,43 @@ const links = [
 ];
 
 export default function AttendanceReports() {
-  const { attendanceRecords, students } = useAppData();
+  const { students, fetchAdminAttendanceReports } = useAppData();
 
   const [studentId, setStudentId] = useState("ALL");
   const [classCode, setClassCode] = useState("ALL");
   const [date, setDate] = useState("");
   const [toastMessage, setToastMessage] = useState("");
+  const [rows, setRows] = useState([]);
+  const [summary, setSummary] = useState({ total: 0, present: 0, absent: 0, percentage: 0 });
+  const [error, setError] = useState("");
 
   const classOptions = useMemo(
     () => [...new Set(students.map((student) => student.classCode))],
     [students]
   );
 
-  const rows = useMemo(
-    () =>
-      attendanceRecords.filter((record) => {
-        const byStudent = studentId === "ALL" || record.studentId === studentId;
-        const byClass = classCode === "ALL" || record.classCode === classCode;
-        const byDate = !date || record.date === date;
-        return byStudent && byClass && byDate;
-      }),
-    [attendanceRecords, studentId, classCode, date]
-  );
+  useEffect(() => {
+    const loadReports = async () => {
+      setError("");
+      const result = await fetchAdminAttendanceReports({
+        studentId,
+        classCode,
+        date,
+      });
 
-  const summary = useMemo(() => {
-    const present = rows.filter((row) => row.status === "Present").length;
-    const total = rows.length;
-    const percentage = total > 0 ? Number(((present / total) * 100).toFixed(0)) : 0;
-    return { present, total, percentage };
-  }, [rows]);
+      if (!result.ok) {
+        setError(result.message);
+        setRows([]);
+        setSummary({ total: 0, present: 0, absent: 0, percentage: 0 });
+        return;
+      }
+
+      setRows(result.data.records || []);
+      setSummary(result.data.summary || { total: 0, present: 0, absent: 0, percentage: 0 });
+    };
+
+    loadReports();
+  }, [studentId, classCode, date, fetchAdminAttendanceReports]);
 
   useEffect(() => {
     if (!toastMessage) {
@@ -189,6 +197,10 @@ export default function AttendanceReports() {
           </table>
         </div>
       </section>
+
+      {error ? (
+        <p className="text-sm font-semibold text-[var(--color-danger)]">{error}</p>
+      ) : null}
 
       {toastMessage ? (
         <div className="fixed right-4 top-20 z-40 rounded-xl border border-emerald-300/40 bg-emerald-500/20 px-4 py-2 text-sm font-semibold text-emerald-200 backdrop-blur-xl">

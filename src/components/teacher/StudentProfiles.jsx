@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Layout from "../shared/Layout";
 import { useAppData } from "../../context/AppDataContext";
-import { useAuth } from "../../context/AuthContext";
 
 const links = [
   { label: "Dashboard", path: "/teacher/dashboard" },
@@ -12,19 +11,59 @@ const links = [
 ];
 
 export default function StudentProfiles() {
-  const { user } = useAuth();
-  const { students, getTeacherById, getStudentOverview } = useAppData();
+  const { fetchTeacherProfile, fetchTeacherStudents, fetchTeacherStudentOverview } = useAppData();
 
   const [query, setQuery] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [teacherStudents, setTeacherStudents] = useState([]);
+  const [overview, setOverview] = useState(null);
+  const [error, setError] = useState("");
 
-  const teacher = getTeacherById(user.id);
-  const allowedClasses = teacher?.assignedClasses || [];
+  useEffect(() => {
+    const loadTeacherStudents = async () => {
+      const profileResult = await fetchTeacherProfile();
+      if (!profileResult.ok) {
+        setError(profileResult.message);
+        return;
+      }
 
-  const teacherStudents = useMemo(
-    () => students.filter((student) => allowedClasses.includes(student.classCode)),
-    [students, allowedClasses]
-  );
+      const allowedClasses = profileResult.data.assignedClasses || [];
+      const studentResults = await Promise.all(
+        allowedClasses.map((classCode) => fetchTeacherStudents(classCode))
+      );
+
+      const merged = studentResults
+        .filter((result) => result.ok)
+        .flatMap((result) => result.data);
+
+      setTeacherStudents(merged);
+    };
+
+    loadTeacherStudents();
+  }, [fetchTeacherProfile, fetchTeacherStudents]);
+
+  useEffect(() => {
+    const loadOverview = async () => {
+      if (!selectedStudentId) {
+        setOverview(null);
+        return;
+      }
+
+      const result = await fetchTeacherStudentOverview(selectedStudentId);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+
+      setOverview({
+        student: result.data.student,
+        markRows: result.data.marks,
+        attendanceRows: result.data.attendance,
+      });
+    };
+
+    loadOverview();
+  }, [selectedStudentId, fetchTeacherStudentOverview]);
 
   const filtered = useMemo(() => {
     const lowered = query.trim().toLowerCase();
@@ -40,7 +79,6 @@ export default function StudentProfiles() {
   }, [query, teacherStudents]);
 
   const selectedStudent = filtered.find((student) => student.id === selectedStudentId) || null;
-  const overview = selectedStudent ? getStudentOverview(selectedStudent.id) : null;
 
   return (
     <Layout links={links}>
@@ -114,6 +152,12 @@ export default function StudentProfiles() {
               </p>
             </article>
           </div>
+        </section>
+      ) : null}
+
+      {error ? (
+        <section className="glass-panel mt-4 p-5">
+          <p className="text-sm font-semibold text-[var(--color-danger)]">{error}</p>
         </section>
       ) : null}
     </Layout>

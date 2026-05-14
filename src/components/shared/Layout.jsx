@@ -1,9 +1,11 @@
 import { useState } from "react";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
+import { useAppData } from "../../context/AppDataContext";
 
 export default function Layout({ links, children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { toast } = useAppData();
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -22,6 +24,19 @@ export default function Layout({ links, children }) {
           {children}
         </main>
       </div>
+
+      {toast ? (
+        <div
+          className={[
+            "fixed right-4 top-20 z-40 rounded-xl border px-4 py-2 text-sm font-semibold backdrop-blur-xl",
+            toast.type === "error"
+              ? "border-red-300/40 bg-red-500/20 text-red-200"
+              : "border-emerald-300/40 bg-emerald-500/20 text-emerald-200",
+          ].join(" ")}
+        >
+          {toast.message}
+        </div>
+      ) : null}
     </div>
   );
 }
